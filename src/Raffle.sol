@@ -32,13 +32,44 @@ pragma solidity ^0.8.18;
  */
 
 contract Raffle {
-    uint256 private immutable i_entranceFee;
     address payable[] private s_players;
 
+    /** State Variables */
+    uint256 private constant REQUEST_COMFIRMATIONS = 3;
+    uint256 private constant NUM_WORDS = 1;
+
+    uint256 private immutable i_entranceFee;
+    // @dev duration of the raffle in seconds.
+    uint256 private immutable i_interval;
+    uint256 private immutable i_vrfCoordinator;
+    bytes32 private immutable i_gasLane;
+    uint64 private immutable i_subscriptionId;
+    uint32 private immutable i_callbackGasLimit;
+
+    uint256 private lastTimeStamp;
+
+    /** Events */
+    event HasEnteredRaffle(address player);
+
+    /** Errors */
     error NotEnoughEthSent();
 
-    constructor(uint256 entranceFee) {
+    /** CONSTRUCTOR FUNCTION */
+    constructor(
+        uint256 entranceFee,
+        uint256 interval,
+        address vrfCoordinator,
+        bytes32 gasLane,
+        uint64 subscriptionId,
+        uint32 callbackGasLimit
+    ) {
         i_entranceFee = entranceFee;
+        i_interval = interval;
+        lastTimeStamp = block.timestamp;
+        i_vrfCoordinator = vrfCoordinator;
+        i_gasLane = gasLane;
+        i_subscriptionId = subscriptionId;
+        i_callbackGasLimit = callbackGasLimit;
     }
 
     function enterRaffle() external payable {
@@ -47,9 +78,22 @@ contract Raffle {
         }
 
         s_players.push(payable(msg.sender));
+        emit HasEnteredRaffle(msg.sender);
     }
 
-    function pickWinner() public {}
+    function pickWinner() external {
+        if (block.timestamp - lastTimeStamp < i_interval) {
+            revert();
+        }
+        // Will revert if subscription is not set and funded.
+        uint256 requestId = i_vrfCoordinator.requestRandomWords(
+            i_gasLane, // gas lane
+            i_subscriptionId, // individual id
+            REQUEST_COMFIRMATIONS,
+            i_callbackGasLimit,
+            NUM_WORDS
+        );
+    }
 
     /**Getter Funtions */
     function getEntranceFee() external view returns (uint256) {
