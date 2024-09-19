@@ -85,6 +85,7 @@ contract Raffle {
         if (block.timestamp - lastTimeStamp < i_interval) {
             revert();
         }
+
         // Will revert if subscription is not set and funded.
         uint256 requestId = i_vrfCoordinator.requestRandomWords(
             i_gasLane, // gas lane
